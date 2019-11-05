@@ -1,0 +1,58 @@
+---
+title: "class-11-05-2019"
+author: "Grace Rotondo"
+date: "11/5/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(moderndive)
+library(dplyr)
+library(infer)
+library(skimr)
+library(babynames)
+library(tidyverse)
+```
+
+```{r}
+evals %>% 
+  select(score, age, gender)
+```
+
+```{r}
+lm.obj <- lm(score ~ age + gender, data = evals)
+
+get_regression_table(lm.obj)
+```
+
+```{r}
+set.seed(9)
+ bootstrap_evals <- evals %>%
+  group_by(score, age, gender) %>% 
+  rep_sample_n(size = 463, reps = 1000, replace = TRUE) %>% 
+  group_by(replicate) %>% 
+  summarize(mean_age = mean(age)) %>% 
+  summarize(upper = quantile(mean_age, probs = 0.975),
+            lower = quantile(mean_age, probs = 0.025))
+ #use summarize instead of mutate bc we don't want to create new columns
+ bootstrap_evals
+```
+
+```{r}
+set.seed(9)
+ bootstrap_lm <- evals %>%
+  rep_sample_n(size = 463, reps = 100, replace = TRUE) %>% 
+  group_by(replicate) %>% 
+  nest() %>% 
+  mutate(results = map(data, ~ lm(score ~ age + gender, data = .x))) %>% 
+  mutate(coefficients = map(results, ~ coef(.x))) %>% 
+  mutate(age_coef = map(coefficients, ~ pluck(.x, "age"))) %>% 
+  unnest(age_coef) %>% 
+  summarize(mean_age_coef = mean(age_coef)) %>% #ungroup()
+  summarize(upper = quantile(mean_age_coef, probs = 0.975), #upper = quantile(age_coef, probs = 0.975)
+            lower = quantile(mean_age_coef, probs = 0.025))
+ 
+ bootstrap_lm
+```
+
